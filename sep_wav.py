@@ -22,7 +22,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # demucs
 def extract_voice(
         model,
         mix,
-        segment=10.,
+        segment=16.,
         overlap=0.1,
         device=None,
         sample_rate=None
@@ -38,7 +38,6 @@ def extract_voice(
             be on `device`, while the entire tracks will be stored on `mix.device`.
     """
 
-
     if device is None:
         device = mix.device
     else:
@@ -46,7 +45,7 @@ def extract_voice(
 
     if sample_rate is None:
         raise "Demucs model loading error"
-
+    mix = mix.to(device)
     batch, channels, length = mix.shape
 
     chunk_len = int(sample_rate * segment * (1 + overlap))
@@ -72,6 +71,24 @@ def extract_voice(
         if end >= length:
             fade.fade_out_len = 0
     return final
+
+
+
+def mp4_to_wav(input_dir:str, input_file: str):
+    """mp4파일을 wav형식으로 변환합니다.
+
+    Args:
+        input_dir (str) : 입력 mp4파일의 path
+        input_file (str) : 입력 mp4파일의 이름
+    """
+
+    ext = os.path.splitext(input_file)[1][1:]
+
+    if ext != "mp4":
+        return 
+    else :
+        track = AudioSegment.from_file(os.path.join(input_dir,input_file),  format= 'mp4')
+        track.export(os.path.join(input_dir,os.path.splitext(input_file)[0]+".wav"), format='wav')
 
 
 def audio_norm(input_filepath: str, output_filepath: str):
@@ -137,6 +154,9 @@ def main(input_dir: str, output_dir: str, split_sil: bool = False, use_norm: boo
         use_extract (bool, optional): 노래가 섞인 오디오에서 목소리만 추출합니다. Defaults to True
     """
 
+    for filename in tqdm(os.listdir(input_dir), desc="mp4 to wav 변환 작업 중..."):
+        mp4_to_wav(input_dir,filename)
+
     filepaths = get_audiofiles(input_dir)
 
     output_final_dir = os.path.join(output_dir, "final")
@@ -186,15 +206,12 @@ def main(input_dir: str, output_dir: str, split_sil: bool = False, use_norm: boo
             if os.path.exists(temp_log_path):
                 os.remove(temp_log_path)
 
-            SAMPLE_SONG = download_asset(filepath)
-            waveform, sample_rate = torchaudio.load(SAMPLE_SONG)  # replace SAMPLE_SONG with desired path for different song
+            waveform, sample_rate = torchaudio.load(filepath)  # replace SAMPLE_SONG with desired path for different song
             waveform.to(device)
 
             # parameters
             segment: int = 15
             overlap = 0.1
-
-            print("Separating track")
 
             sources = extract_voice(
                 model,
@@ -211,9 +228,9 @@ def main(input_dir: str, output_dir: str, split_sil: bool = False, use_norm: boo
             audios = dict(zip(sources_list, sources))
 
             filename = os.path.splitext(os.path.basename(filepath))[0]
-            out_filepath = os.path.join(output_voice_dir, f"{filename}-%03d.wav")
+            out_filepath = os.path.join(output_voice_dir, f"{filename}.wav")
 
-            torchaudio.save(out_filepath, audios["vocals"], sample_rate) # audios has drums, bass, vocals, others, but we need only vocals
+            torchaudio.save(out_filepath, audios["vocals"].cpu(), sample_rate) # audios has drums, bass, vocals, others, but we need only vocals
 
         filepaths = get_audiofiles(output_voice_dir)
 
