@@ -2,7 +2,7 @@
 
 ## 음원 자르기 툴
 #### ffmpeg 필요
-#### wav, flac 확장자를 지원합니다.
+#### wav, flac, mp4 확장자를 지원합니다.
 
 [해당 코드](https://github.com/Kor-SVS/Diff-SVC-Tools/blob/702680cff85765184d0c6903c46bd3a7a1f087af/sep_wav.py#L273-L277)를 수정하여 옵션을 변경할 수 있습니다.
 
